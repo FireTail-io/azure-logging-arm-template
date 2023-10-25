@@ -34,7 +34,7 @@ jobs:
         run: |
           echo "$(shasum -a 256 ${ARTIFACT_FILE_NAME} | awk '{ print $1 }') ${ARTIFACT_FILE_NAME}" >> checksum.txt 
 
-      - name: Upload lambda.zip To Release
+      - name: Upload json To Release
         uses: actions/upload-release-asset@v1.0.2
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -44,7 +44,7 @@ jobs:
           asset_name: ${{ env.ARTIFACT_FILE_NAME }}
           asset_content_type: application/json
 
-      - name: Upload lambda.zip Checksum To Release
+      - name: Upload json Checksum To Release
         uses: actions/upload-release-asset@v1.0.2
         env:
           GITHUB_TOKEN: ${{ github.token }}
