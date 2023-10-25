@@ -1,0 +1,1 @@
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fgithub.com%2FFireTail-io%2Fazure-logging-arm-template%2Freleases%2Fdownload%2Fv0.1.1%2Fazure-logging.json)
