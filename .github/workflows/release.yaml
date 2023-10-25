@@ -1,0 +1,57 @@
+name: Deploy To Production
+
+on:
+  release:
+    types: [released]
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+env:
+  GITHUB_TOKEN: ${{ github.token }}
+
+jobs:
+  deploy-to-production:
+    environment: prod
+
+    env:
+      ARTIFACT_FILE_NAME: azure-logging.json
+      CHECKSUM_FILE_NAME: azure-logging.json.checksum.txt
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout Src
+        uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
+
+      - name: Set Environment Vars
+        run: |
+          echo "S3_DESTINATION_PATH=releases/${{ env.LAMBDA_NAME }}/${{ github.ref_name }}/lambda.zip" \
+            >>$GITHUB_ENV
+
+      - name: Download file and Checksum From Release
+        run: |
+          gh release download ${{ github.ref_name }} \
+            --pattern ${{ env.ARTIFACT_FILE_NAME }} \
+            --clobber \
+            --output  ${{ env.ARTIFACT_FILE_NAME }}
+
+          gh release download ${{ github.ref_name }} \
+            --pattern ${{ env.CHECKSUM_FILE_NAME }} \
+            --clobber \
+            --output  ${{ env.CHECKSUM_FILE_NAME }}
+  
+      - name: Generate checksum json
+        run: |
+          echo "$(shasum -a 256 ${ARTIFACT_FILE_NAME} | awk '{ print $1 }') ${ARTIFACT_FILE_NAME}" >> new-checksum.txt 
+
+      - name: Verify zip checksum and release checksum are the same
+        uses: LouisBrunner/diff-action@7f474eadb4a5d7ac780dc985c3ae3f7766d41fe2
+        with:
+          old: ${{ env.ARTIFACT_FILE_NAME }}.checksum.txt
+          new: new-checksum.txt
+          mode: addition
+          tolerance: same

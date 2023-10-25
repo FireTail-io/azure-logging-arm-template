@@ -1,0 +1,55 @@
+name: Create A Draft Release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  id-token: write
+  contents: write
+  pull-requests: write
+
+jobs:
+  create-draft-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Draft Release
+        id: draft_release
+        uses: release-drafter/release-drafter@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Checkout Src
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 2
+
+      - name: Set ARTIFACT_FILE_NAME env
+        run: |
+          echo "ARTIFACT_FILE_NAME=azure-logging.json" >> $GITHUB_ENV
+
+      - name: checksum file
+        run: |
+          echo "$(shasum -a 256 ${ARTIFACT_FILE_NAME} | awk '{ print $1 }') ${ARTIFACT_FILE_NAME}" >> checksum.txt 
+
+      - name: Upload lambda.zip To Release
+        uses: actions/upload-release-asset@v1.0.2
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          upload_url: ${{ steps.draft_release.outputs.upload_url }}
+          asset_path: ${{ env.ARTIFACT_FILE_NAME }}
+          asset_name: ${{ env.ARTIFACT_FILE_NAME }}
+          asset_content_type: application/json
+
+      - name: Upload lambda.zip Checksum To Release
+        uses: actions/upload-release-asset@v1.0.2
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          upload_url: ${{ steps.draft_release.outputs.upload_url }}
+          asset_path: checksum.txt
+          asset_name: ${{ env.ARTIFACT_FILE_NAME }}.checksum.txt
+          asset_content_type: text/plain

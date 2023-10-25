@@ -1,0 +1,231 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "variables": {
+        "functionAppName": "[parameters('appName')]",
+        "applicationInsightsName": "[parameters('appName')]",
+        "storageAccountName": "[format('{0}azfunctions', uniqueString(resourceGroup().id))]",
+        "packageUri": "https://firetail-sandbox-eu-west-1-artifacts.s3.eu-west-1.amazonaws.com/functions/azure-function-logger/function_app.zip",
+		"appHostingPlanNameVar": "[concat(parameters('appName'),'-apps')]"
+    },
+    "resources": [{
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "2022-05-01",
+            "name": "[variables('storageAccountName')]",
+            "location": "[resourceGroup().location]",
+            "sku": {
+                "name": "[parameters('storageAccountType')]"
+            },
+            "kind": "Storage",
+            "properties": {
+                "supportsHttpsTrafficOnly": true,
+                "defaultToOAuthAuthentication": true
+            }
+        }, {
+            "type": "Microsoft.EventHub/namespaces",
+            "apiVersion": "2017-04-01",
+            "name": "[parameters('eventHubNamespaceName')]",
+            "location": "[resourceGroup().location]",
+            "sku": {
+                "name": "Standard",
+                "tier": "Standard"
+            },
+            "properties": {}
+        }, {
+            "type": "Microsoft.EventHub/namespaces/eventhubs",
+            "apiVersion": "2017-04-01",
+            "name": "[format('{0}/{1}', parameters('eventHubNamespaceName'), parameters('eventHubName'))]",
+            "dependsOn": [
+                "[resourceId('Microsoft.EventHub/namespaces', parameters('eventHubNamespaceName'))]"
+            ],
+            "properties": {
+                "messageRetentionInDays": 1
+            }
+        }, {
+            "type": "Microsoft.EventHub/namespaces/AuthorizationRules",
+            "apiVersion": "2017-04-01",
+            "name": "[concat(parameters('eventHubNamespaceName'), '/firetail-auth-rule')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.EventHub/namespaces', parameters('eventHubNamespaceName'))]"
+            ],
+            "properties": {
+                "rights": ["Listen", "Send"]
+            }
+        }, {
+            "type": "Microsoft.ApiManagement/service/loggers",
+            "apiVersion": "2020-06-01-preview",
+            "name": "[concat(parameters('apimServiceName'), '/firetail-logger')]",
+            "properties": {
+                "loggerType": "azureEventHub",
+                "description": "Event Hub Logger",
+                "credentials": {
+                    "connectionString": "[listKeys(resourceId('Microsoft.EventHub/namespaces/AuthorizationRules', parameters('eventHubNamespaceName'), 'firetail-auth-rule'), '2017-04-01').primaryConnectionString]",
+                    "name": "[parameters('eventHubName')]"
+                },
+				"resourceId": "parameters('apimLoggerId')"
+            }
+        }, {
+            "type": "Microsoft.Web/sites",
+            "kind": "functionapp",
+            "name": "[variables('functionAppName')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.EventHub/namespaces', parameters('eventHubNamespaceName'))]",
+				"[resourceId('Microsoft.Web/serverfarms', variables('appHostingPlanNameVar'))]"
+            ],
+            "apiVersion": "2021-02-01",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('appHostingPlanNameVar'))]",
+                "siteConfig": {
+                    "connectionStrings": [{
+                            "name": "eventhub_connection_str",
+                            "connectionString": "[listKeys(resourceId('Microsoft.EventHub/namespaces/AuthorizationRules', parameters('eventHubNamespaceName'), 'firetail-auth-rule'), '2017-04-01').primaryConnectionString]",
+                            "type": "Custom"
+                        }
+                    ],
+                    "appSettings": [{
+                            "name": "WEBSITE_RUN_FROM_PACKAGE",
+                            "value": "1"
+                        }, {
+                            "name": "AzureWebJobsStorage",
+                            "value": "[format('DefaultEndpointsProtocol=https;AccountName={0};EndpointSuffix={1};AccountKey={2}', variables('storageAccountName'), environment().suffixes.storage, listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), '2022-05-01').keys[0].value)]"
+                        }, {
+                            "name": "FUNCTIONS_WORKER_RUNTIME",
+                            "value": "python"
+                        }, {
+                            "name": "FIRETAIL_APP_TOKEN",
+                            "value": "[parameters('firetailAppToken')]"
+                        }, {
+                            "name": "FIRETAIL_API_URL",
+                            "value": "[parameters('firetailApiUrl')]"
+                        }, {
+                            "name": "EVENT_HUB_NAME",
+                            "value": "[parameters('eventHubName')]"
+                        }
+                    ],
+                    "use32BitWorkerProcess": false
+                }
+            },
+            "resources": [{
+                    "name": "ZipDeploy",
+                    "type": "Extensions",
+                    "apiVersion": "2021-02-01",
+                    "dependsOn": [
+                        "[concat('Microsoft.Web/sites/', variables('functionAppName'))]"
+                    ],
+                    "properties": {
+                        "packageUri": "[variables('packageUri')]"
+                    }
+                }
+            ]
+        }, {
+            "type": "Microsoft.Insights/components",
+            "apiVersion": "2020-02-02",
+            "name": "[variables('applicationInsightsName')]",
+            "location": "[resourceGroup().location]",
+            "kind": "web",
+            "properties": {
+                "Application_Type": "web",
+                "Request_Source": "rest"
+            }
+        }, {
+            "type": "Microsoft.Web/serverfarms",
+            "apiVersion": "2021-02-01",
+            "name": "[variables('appHostingPlanNameVar')]",
+            "location": "[resourceGroup().location]",
+			 "sku": {
+				"name": "[parameters('appServicePlanSkuName')]"
+			 },
+            "properties": {
+                "name": "[variables('appHostingPlanNameVar')]",
+				"numberOfWorkers": 1
+            }
+        }
+    ],
+    "parameters": {
+        "appName": {
+            "type": "string",
+            "defaultValue": "[format('firetail-logging-{0}', uniqueString(resourceGroup().id))]",
+            "metadata": {
+                "description": "The name of the function app that you wish to create."
+            }
+        },
+		"appServicePlanSkuName": {
+			  "type": "string",
+			  "defaultValue": "S1",
+			  "allowedValues": [
+				"F1",
+				"D1",
+				"B1",
+				"B2",
+				"B3",
+				"S1",
+				"S2",
+				"S3",
+				"P1",
+				"P2",
+				"P3",
+				"P4"
+			  ],
+			  "metadata": {
+				"description": "Describes plan's pricing tier and capacity. Check details at https://azure.microsoft.com/en-us/pricing/details/app-service/"
+			  }
+		},
+        "eventHubNamespaceName": {
+            "type": "string",
+            "metadata": {
+                "description": "Name of the Event Hub Namespace"
+            }
+        },
+        "eventHubName": {
+            "type": "string",
+            "metadata": {
+                "description": "Name of the Event Hub"
+            }
+        },
+        "apimServiceName": {
+            "type": "string",
+            "metadata": {
+                "description": "Name of the Azure API Management service"
+            }
+        },
+        "firetailAppToken": {
+            "type": "securestring",
+            "metadata": {
+                "description": "App token for Firetail"
+            }
+        },
+        "firetailApiUrl": {
+            "type": "string",
+			"defaultValue": "https://api.logging.eu-west-1.sandbox.firetail.app/logs/azure/apim/bulk",
+            "metadata": {
+                "description": "URL for Firetail API"
+            }
+        },
+		"apimLoggerId": {
+            "type": "string",
+			"defaultValue": "firetail-logger",
+            "metadata": {
+                "description": "resource id for api management logging"
+            }
+        },
+        "storageAccountType": {
+            "type": "string",
+            "defaultValue": "Standard_LRS",
+            "allowedValues": [
+                "Standard_LRS",
+                "Standard_GRS",
+                "Standard_RAGRS"
+            ],
+            "metadata": {
+                "description": "Storage Account type"
+            }
+        }
+    },
+    "outputs": {
+		"resourceLoggingId": {
+		  "type": "string",
+		  "value": "[parameters('apimLoggerId')]"
+		}
+	}
+}
