@@ -67,6 +67,7 @@
         }, {
             "type": "Microsoft.Web/sites",
             "name": "[variables('functionAppName')]",
+            "kind": "functionapp",
             "dependsOn": [
                 "[resourceId('Microsoft.EventHub/namespaces', parameters('eventHubNamespaceName'))]",
 				"[resourceId('Microsoft.Web/serverfarms', variables('appHostingPlanNameVar'))]"
