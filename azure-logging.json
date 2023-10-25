@@ -67,7 +67,7 @@
         }, {
             "type": "Microsoft.Web/sites",
             "name": "[variables('functionAppName')]",
-            "kind": "functionapp",
+            "kind": "functionapp,linux",
             "dependsOn": [
                 "[resourceId('Microsoft.EventHub/namespaces', parameters('eventHubNamespaceName'))]",
 				"[resourceId('Microsoft.Web/serverfarms', variables('appHostingPlanNameVar'))]"
@@ -84,9 +84,6 @@
                         }
                     ],
                     "appSettings": [{
-                            "name": "WEBSITE_RUN_FROM_PACKAGE",
-                            "value": "[variables('packageUri')]"
-                        }, {
                             "name": "AzureWebJobsStorage",
                             "value": "[format('DefaultEndpointsProtocol=https;AccountName={0};EndpointSuffix={1};AccountKey={2}', variables('storageAccountName'), environment().suffixes.storage, listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), '2022-05-01').keys[0].value)]"
                         }, {
@@ -104,24 +101,28 @@
                         },{
                             "name": "FUNCTIONS_EXTENSION_VERSION",
                             "value": "~4"
+                        },
+                        {
+                            "name": "SCM_DO_BUILD_DURING_DEPLOYMENT",
+                            "value": "true"
                         }
                     ],
                     "use32BitWorkerProcess": false
                 }
+            }
+        },
+        {
+            "type": "Microsoft.Web/sites/extensions",
+            "apiVersion": "2022-03-01",
+            "name": "[format('{0}/{1}', variables('functionAppName'), 'zipdeploy')]",
+            "properties": {
+              "packageUri": "[parameters('packageUri')]"
             },
-            "resources": [{
-                    "name": "ZipDeploy",
-                    "type": "Extensions",
-                    "apiVersion": "2021-02-01",
-                    "dependsOn": [
-                        "[concat('Microsoft.Web/sites/', variables('functionAppName'))]"
-                    ],
-                    "properties": {
-                        "packageUri": "[variables('packageUri')]"
-                    }
-                }
+            "dependsOn": [
+              "[resourceId('Microsoft.Web/sites', variables('functionAppName'))]"
             ]
-        }, {
+          },
+        {
             "type": "Microsoft.Insights/components",
             "apiVersion": "2020-02-02",
             "name": "[variables('applicationInsightsName')]",
@@ -157,7 +158,7 @@
         },
 		"appServicePlanSkuName": {
 			  "type": "string",
-			  "defaultValue": "S1",
+			  "defaultValue": "B1",
 			  "allowedValues": [
 				"F1",
 				"D1",
