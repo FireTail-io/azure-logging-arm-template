@@ -103,7 +103,7 @@
                             "value": "[parameters('eventHubName')]"
                         },{
                             "name": "FUNCTIONS_EXTENSION_VERSION",
-                            "value": "4"
+                            "value": "~4"
                         }
                     ],
                     "use32BitWorkerProcess": false
