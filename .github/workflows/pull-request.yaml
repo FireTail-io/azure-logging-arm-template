@@ -1,4 +1,4 @@
-name: Build lambda.zip Distributable & Run Tests
+name: validate json
 
 on:
   - pull_request
@@ -15,7 +15,7 @@ jobs:
 
       - name: json-yaml-validate
         id: json-yaml-validate
-        uses: GrantBirki/json-yaml-validate@vX.X.X # replace with the latest version
+        uses: GrantBirki/json-yaml-validate@3add42f5fa8bfff04a3fe664d27a316736257ef1 # v2.3.1
         with:
           files: azure-logging.json
 
