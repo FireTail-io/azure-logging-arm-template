@@ -1,0 +1,26 @@
+name: validate json
+
+on:
+  - pull_request
+
+jobs:
+  build-docker-image:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Src
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
+        with:
+          fetch-depth: 2
+
+      - name: json-yaml-validate
+        id: json-yaml-validate
+        uses: GrantBirki/json-yaml-validate@3add42f5fa8bfff04a3fe664d27a316736257ef1 # v2.3.1
+        with:
+          files: azure-logging.json
+
+      - name: Upload azure-logging.json As Artifact
+        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce
+        with:
+          name: azure-logging.json
+          path: azure-logging.json
