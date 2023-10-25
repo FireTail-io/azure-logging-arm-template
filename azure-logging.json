@@ -66,7 +66,7 @@
             }
         }, {
             "type": "Microsoft.Web/sites",
-            "kind": "functionapp",
+            "kind": "functionapp,linux",
             "name": "[variables('functionAppName')]",
             "dependsOn": [
                 "[resourceId('Microsoft.EventHub/namespaces', parameters('eventHubNamespaceName'))]",
@@ -75,6 +75,7 @@
             "apiVersion": "2021-02-01",
             "location": "[resourceGroup().location]",
             "properties": {
+                "reserved": true,
                 "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('appHostingPlanNameVar'))]",
                 "siteConfig": {
                     "connectionStrings": [{
