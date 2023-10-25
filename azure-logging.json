@@ -80,6 +80,7 @@
             "properties": {
                 "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('appHostingPlanNameVar'))]",
                 "siteConfig": {
+                    "linuxFxVersion": "PYTHON|3.11",
                     "connectionStrings": [{
                             "name": "eventhub_connection_str",
                             "connectionString": "[listKeys(resourceId('Microsoft.EventHub/namespaces/AuthorizationRules', parameters('eventHubNamespaceName'), 'firetail-auth-rule'), '2017-04-01').primaryConnectionString]",
